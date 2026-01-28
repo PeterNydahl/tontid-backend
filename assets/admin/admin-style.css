@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap');
+
+:root {
+    --webbRed: hsl(353.93deg 91.75% 61.96%);
+    --creamyWhite: hsl(48.33deg 100% 92.94%);
+    --cieloCajamarquino: hsl(183.16deg 98.7% 69.8%);
+    --pistageGlass: hsl(102, 100%, 85%);
+    --strawberryDream: hsl(289.09deg 95.65% 90.98%);
+    --tummenRosa: hsl(324.44deg 100% 89.41%);
+    --wordpressBlue: #2271b1;
+}
+
+
+#wpbody-content{
+    width: auto;
+}
+
+.schedule{
+    /* font-family: "Quicksand", sans-serif; */
+    display: grid;
+    grid-template-columns: 80px repeat(5, 200px);
+    gap: 10px;
+    background-color: hsl(100deg, 0%, 80%);
+    padding: 10px;
+    border-radius: 3px;
+    color: black;
+}
+
+.schedule__header {
+    grid-row: 1;
+    /* font-weight: bold; */
+    text-align: center;
+    padding: 15px;
+    font-size: 24px;
+    border-radius: 3px;
+}
+
+.schedule__header:first-child{
+    /* background-color: var(--pistageGlass); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+.schedule__header:nth-child(2){
+    /* background-color: var(--creamyWhite); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+.schedule__header:nth-child(3){
+    /* background-color: var(--cieloCajamarquino); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+.schedule__header:nth-child(4){
+    /* background-color: var(--pistageGlass); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+.schedule__header:nth-child(5){
+    /* background-color: var(--strawberryDream); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+.schedule__header:nth-child(6){
+    /* background-color: var(--tummenRosa); */
+    background-color: var(--wordpressBlue);
+    color: white
+}
+
+
+
+.schedule__time-slots{
+  display: grid;
+  grid-template-rows: repeat(25, 30px);  
+}
+
+.schedule-timeslot{
+    font-weight: bold;
+    box-sizing: border-box;
+    border-top: 2px solid var(--wordpressBlue);
+    height: 30px;
+    text-align:center;
+    color: black;
+}
+
+
+.schedule__weekday {
+    display: grid;
+    grid-template-rows: repeat(720, 1px);
+}
+
+.booking {
+    position: relative;
+    border-radius: 3px;
+    padding-left: 5px;
+    /* font-weight: bold; */
+    font-size: 14px;
+    overflow: hidden;
+    box-sizing: border-box;
+    /* border: 2px solid black; */
+}
+
+
+.monday .booking{
+    /* background-color: var(--creamyWhite); */
+    background-color: var(--wordpressBlue);
+    color: white;
+}
+
+.tuesday .booking{
+    /* background-color: var(--cieloCajamarquino); */
+    background-color: var(--wordpressBlue);
+    color: white;
+}
+
+.wednesday .booking{
+    /* background-color: var(--pistageGlass); */
+    background-color: var(--wordpressBlue);
+    color: white;
+}
+
+.thursday .booking{
+    /* background-color: var(--strawberryDream); */
+    background-color: var(--wordpressBlue);
+    color: white;
+}
+
+.friday .booking{
+    /* background-color: var(--tummenRosa); */
+    background-color: var(--wordpressBlue);
+    color: white;
+}
+
+/*Ta bort/visa bokningar i listformat
+---------------------------------------------------------*/
+.delete-button {
+    background-color: var(--webbRed);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 3px;
+}
+
+.delete-button:hover{
+    filter: brightness(0.9);
+    cursor: pointer;
+}
+
+.delete-bookings-table td{
+    padding-left: 0;
+}
+
+/* table längst upp för att välja rum för filtrering */
+.select-room-for-booking-filtering td{
+    padding-left: 0px;
+}
+
+/*Ta bort rum
+--------------------------------------------------------*/
+.delete-room-button {
+    background-color: var(--webbRed);
+    color: white;
+    border: none;
+    padding: 6px 20px;
+    border-radius: 3px;
+    margin-left: 10px;
+    font-size: 14px;
+    vertical-align: bottom;
+}
+
+.delete-room-button:hover{
+    filter: brightness(0.9);
+}
