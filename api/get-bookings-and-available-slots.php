@@ -1,4 +1,7 @@
 <?php
+
+if(!defined('ABSPATH')) wp_die('Du har ej direktåtkomst till denna fil.'); 
+
 //registrera en endpoint get-bookings-and-available-slots
 add_action('rest_api_init', function () {
     register_rest_route(
@@ -35,11 +38,6 @@ function get_bookings_and_available_slots($request)
         ], 400);
     }
 
-    // skapa en query som hämtar alla bokningar för rummet där room_id är samma som $room_id
-    // exekvera queryn och spara i $bookings
-    $query = $wpdb->prepare("SELECT * FROM $table_name_bookings WHERE room_id = %s", $room_id);
-    $bookings = $wpdb->get_results($query);
-
     //kollar att vald vecka har ett giltigt värde
     if (!ctype_digit($selected_week) || $selected_week < 1 || $selected_week > 53) {
         return new WP_REST_Response([
@@ -48,32 +46,22 @@ function get_bookings_and_available_slots($request)
         ], 400);
     }
 
-    // Sortera ut bokningar av rummet baserat på vald vecka
-    // 1. Skapa ett nytt DateTime-objekt $date
-    // $date = new DateTime();
+    // Skapa datumsträngar som matchar DB-formatet exakt
+    $monday_first_hour = (new DateTime())->setISODate($year, (int)$selected_week, 1)->setTime(8, 0, 0)->format('Y-m-d H:i:s');
+    $friday_last_hour  = (new DateTime())->setISODate($year, (int)$selected_week, 5)->setTime(20, 0, 0)->format('Y-m-d H:i:s');
 
-    // // 2. Sätt datumet till måndagen i vald vecka och år
-    // $date->setISODate($year, (int)$selected_week, 1);
-
-    // // 3. Sätt tiden till 08:00
-    // $date->setTime(8, 0);
-
-    // // 4. Hämta Unix-timestamp och spara i $monday_first_hour
-    // $monday_first_hour = $date->getTimeStamp();
-
-    // 5. Samma syntex men med kejdemetoder
-    $monday_first_hour = (new DateTime())->setISODate($year, (int)$selected_week, 1)->setTime(8, 0)->getTimestamp();
-    $friday_last_hour = (new DateTime())->setISODate($year, $selected_week, 5)->setTime(20, 0)->getTimestamp();
-
-    // deklarera en tom arrray $selected_week_bookings som du lägger veckans bokningar i
-    // datan från db som lagst i $bookings innehåller en tabell vid namn booking_start och som är ett datum med klockslag
-    $selected_week_bookings = [];
-    foreach ($bookings as $booking) {
-        $booking_timestamp = (new DateTime($booking->booking_start))->getTimestamp();
-        if ($booking_timestamp >= $monday_first_hour && $booking_timestamp <= $friday_last_hour) {
-            $selected_week_bookings[] = $booking;
-        }
-    }
+    $selected_week_bookings = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT * FROM $table_name_bookings
+            WHERE room_id IN ('%s')
+            AND booking_start >= %s 
+            AND booking_end <= %s
+            ORDER BY booking_start ASC",
+            $room_id,
+            $monday_first_hour, 
+            $friday_last_hour
+        )
+    );
 
     // Om veckan är tom – returnera hela dagar som lediga
     if (empty($selected_week_bookings)) {
@@ -110,28 +98,9 @@ function get_bookings_and_available_slots($request)
         $day_end = (new DateTime())->setISODate($year, $selected_week, $day)->setTime(20, 0);
         $day_str = $day_start->format('Y-m-d');
 
-        // Hämta bokningar för iterations dag (basera på datum)
+        // Hämta bokningar för iterations dag (baserat på datum)
         $day_bookings = array_filter($selected_week_bookings, function ($b) use ($day_str) {
             return (new DateTime($b->booking_start))->format('Y-m-d') === $day_str;
-        });
-
-        // Enkla sorteringsfunktioner siffror & strängar: 
-        // sort, rsort = sorterar på värden
-        // asort, arsort = oxå på värden men nycklarna förblir densamma
-        // ksort, krsort = sorterar på nycklarnas värde
-        // Komplexa sorteringsfunktioner siffror & strängar: 
-        // usort = sorterar baserat på en callback funktion. 
-        // -- ett måste om du ska sortera objekt efter på något av dess egenskaper. 
-        // -- också för arayer av ass-arrays
-        // uasort - om du vill behålla nycklarnas värden
-        // och så en time funktion! 
-        // echo strtotime("2025-11-01 08:00:00");
-        // Exempelutgång: 1741190400 (antal sekunder sedan 1970-01-01)
-
-        // Sortera bokningar efter starttid
-        // usort sorterar samma array som du skickar in — den skapar inte en kopia.
-        usort($day_bookings, function ($a, $b) {
-            return strtotime($a->booking_start) <=> strtotime($b->booking_start);
         });
 
         $current_start = clone $day_start;

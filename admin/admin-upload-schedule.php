@@ -22,13 +22,14 @@ class AdminUploadSchedule {
 
     // Lägger till submenu under huvudmenyn "TonTid"
     public function add_upload_schedule() {
-        add_submenu_page(
-            'tontid',                         // Parent slug
+        add_menu_page(
             'Ladda upp schema',               // Sidtitel
             'Ladda upp schema',               // Menynamn
             'tontid_view_menu',               // Capability
             'tontid-upload-schedule',         // Slug
-            array($this, 'display_upload_schedule') // Callback
+            array($this, 'display_upload_schedule'), // Callback
+            'dashicons-cloud-upload',         //Dashicon
+            0                                 //position
         );
     }
 
@@ -97,13 +98,13 @@ class AdminUploadSchedule {
         $destination = $plugin_upload_dir . basename($uploaded_file['name']);
 
         // Debug: logga filinfo
-        error_log('Uppladdning påbörjad: ' . print_r($uploaded_file, true));
-        error_log('Destination: ' . $destination);
+        // error_log('Uppladdning påbörjad: ' . print_r($uploaded_file, true));
+        // error_log('Destination: ' . $destination);
 
         if (move_uploaded_file($uploaded_file['tmp_name'], $destination)) {
             // Lyckad uppladdning
             wp_redirect(admin_url('admin.php?page=tontid-upload-schedule&message=success'));
-            print_r(AddSchemaBookings::orchestra());
+            AddSchemaBookings::orchestra();
             exit;
         } else {
             // Fel vid uppladdning

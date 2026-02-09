@@ -4,10 +4,10 @@ require_once plugin_dir_path(__FILE__) . 'admin-handle-rooms.php';
 require_once plugin_dir_path(__FILE__) . 'admin-handle-bookings.php';
 require_once plugin_dir_path(__FILE__) . 'admin-show-schedule.php';
 require_once plugin_dir_path(__FILE__) . 'admin-show-and-delete-bookings.php';
-require_once plugin_dir_path(__FILE__) . 'admin-upload-schedule.php';
-require_once plugin_dir_path(__FILE__) . 'admin-todays-bookings.php';
-require_once plugin_dir_path(__FILE__) . 'admin-schedule-blocks.php';
-require_once plugin_dir_path(__FILE__) . 'show-and-delete-schedule-blocks.php';
+// require_once plugin_dir_path(__FILE__) . 'admin-upload-schedule.php';
+// require_once plugin_dir_path(__FILE__) . 'admin-todays-bookings.php';
+// require_once plugin_dir_path(__FILE__) . 'admin-schedule-blocks.php';
+// require_once plugin_dir_path(__FILE__) . 'show-and-delete-schedule-blocks.php';
 
 
 
@@ -20,16 +20,20 @@ class AdminUI{
     
     public function __construct(){
         //hookar i wp funktion då adminpanelen byggs upp och anropar callbackmetod som lägger till programmets huvudmenyn
-        add_action('admin_menu', array($this, 'add_admin_menus'));
+        // add_action('admin_menu', array($this, 'add_admin_menus'));
         // instansierar extern klass och sparar som property i denna klass så att vi kan anropa metoder från det externa objektet
         $this->adminShowSchedule = new AdminShowSchedule();
-        new AdminHandleBookings();
-        new AdminShowAndDeleteBookings();
-        new AdminHandleRooms();
-        new AdminShowTodaysBookings();
-        new AdminUploadSchedule();
-        new AdminScheduleBlocks();
-        new AdminShowAndDeleteScheduleBlocks();
+        //Nedanstående klasser ansåg jag överflödiga för rytmus sthlm. Men jag behåller den utkommenterade 
+        //koden om det skulle bli aktuellt att använda i ett annat sammanhang.
+        // new AdminHandleBookings();
+        // new AdminShowAndDeleteBookings();
+        // new AdminHandleRooms();
+
+        // nedansåtende flyttade jag till huduvfilen
+        // new AdminShowTodaysBookings();
+        // new AdminUploadSchedule();
+        // new AdminScheduleBlocks();
+        // new AdminShowAndDeleteScheduleBlocks();
     }
 
     //Lägger till huvudmenyn

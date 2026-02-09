@@ -17,15 +17,26 @@ if (!defined('ABSPATH')) {
 
 /* UI (dashboard) FÖR RESULTAT VID TESTING 
 ---------------------------------------------------------*/
-add_action('admin_menu', function(){
-        add_menu_page(
-            'Test', 
-            'Test', 
-            'tontid_view_menu',
-            'tontid-test', 
-            function() {require plugin_dir_path(__FILE__) . '/includes/test.php';}
-            ,'dashicons-airplane', 1);
-});
+// add_action('admin_menu', function(){
+//         add_menu_page(
+//             'Test', 
+//             'Test', 
+//             'tontid_view_menu',
+//             'tontid-test', 
+//             function() {require plugin_dir_path(__FILE__) . '/includes/test.php';}
+//             ,'dashicons-airplane', 1);
+// });
+
+/* UI dashboard - lägg till delar 
+---------------------------------------------------------*/
+require_once plugin_dir_path(__FILE__) . '/admin/admin-todays-bookings.php';
+new AdminShowTodaysBookings();
+require_once plugin_dir_path(__FILE__) . '/admin/admin-upload-schedule.php';
+new AdminUploadSchedule();
+require_once plugin_dir_path(__FILE__) . '/admin/admin-schedule-blocks.php';
+new AdminScheduleBlocks();
+require_once plugin_dir_path(__FILE__) . '/admin/show-and-delete-schedule-blocks.php';
+new AdminShowAndDeleteScheduleBlocks();
 
 /*JWT (Jason Web Token) STUFF 
 ---------------------------------------------------------*/
@@ -74,6 +85,14 @@ function plugin_activation_orchestra(){
     tontid_create_music_rooms_table();
     tontid_create_bookings_table();
     tontid_create_roles();
+
+    //indexering av db för ökad prestanda
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'tontid_bookings';
+    $wpdb->query("
+        ALTER TABLE $table_name
+        ADD INDEX idx_type_room_start_end (booking_type, room_id, booking_start, booking_end)
+    ");
 }
 //och så hooken:
 register_activation_hook( __FILE__, 'plugin_activation_orchestra');

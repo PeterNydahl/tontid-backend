@@ -15,8 +15,8 @@ class AdminScheduleBlocks
     public function add_admin_meny()
     {
         add_menu_page(
-            'Skapa blockering',
-            'Skapa blockering',
+            'Schema blockering',
+            'Schema blockering',
             'tontid_view_menu',
             'tontid-schedule-blocks',
             array($this, 'display_schedule_blocks'),
@@ -127,12 +127,14 @@ class AdminScheduleBlocks
         $start_timestamp = $start_datetime->getTimestamp();
         $start_date = $start_datetime->format('Y-m-d');
         $start_time = $start_datetime->format('H:i:s');
-
+        
+        
         $end_datetime = new DateTime(sanitize_text_field($_POST['booking_end']));
         $end_timestamp = $end_datetime->getTimestamp();
         $end_date = $end_datetime->format('Y-m-d');
         $end_time = $end_datetime->format('H:i:s');
-
+        
+        
         $blocking_dates = [];
 
         //skapa en array med det omfång av datum som blockeringen består av
@@ -145,9 +147,27 @@ class AdminScheduleBlocks
 
         global $wpdb;
         $table_name_bookings = $wpdb->prefix . 'tontid_bookings';
-        //ta bort bokningar som krockar med schemablock
-        $sql_get_bookings = "SELECT * FROM $table_name_bookings";
+        
+        $start_datetime = (new DateTime(sanitize_text_field($_POST['booking_start'])))->format('Y-m-d H:i:s');
+        $end_datetime = (new DateTime(sanitize_text_field($_POST['booking_end'])))->format('Y-m-d H:i:s');
+        
+        $selected_rooms_id_string = implode("','", array_map('esc_sql', $selected_rooms));
+        $sql_get_bookings = $wpdb->prepare(
+            "SELECT *
+            FROM $table_name_bookings 
+            WHERE room_id IN ('$selected_rooms_id_string')
+            AND booking_start < %s
+            AND booking_end > %s", $end_datetime, $start_datetime
+        );
         $bookings = $wpdb->get_results($sql_get_bookings, ARRAY_A);
+        //ta bort bokningarna som krockar (dvs de som filtrerats ut)
+        foreach($bookings as $b){
+            $wpdb->delete(
+                $table_name_bookings,
+                ['booking_id' => $b['booking_id']],
+                ['%d']
+            );
+        }
 
         // Lägg till schemablockering i databasen
         $user_id = get_current_user_id();
@@ -156,29 +176,6 @@ class AdminScheduleBlocks
             foreach ($blocking_dates as $blocking_date) {
                 $blocking_start = (new DateTime("$blocking_date $start_time"))->format('Y-m-d H:i:s');
                 $blocking_end = (new DateTime("$blocking_date $end_time"))->format('Y-m-d H:i:s');
-                
-                //ta bort bokningar som krockar med schemablockering
-                foreach($bookings as $b){
-                    $b_start_timestamp = (new DateTime($b['booking_start']))->getTimestamp();
-                    $b_end_timestamp = (new DateTime($b['booking_end']))->getTimestamp();
-                    if (
-                        $b_end_timestamp > (new DateTime($blocking_start))->getTimestamp() 
-                        && $b_start_timestamp < (new DateTime($blocking_end))->getTimestamp()
-                        && $b['room_id'] === $room_id
-                        ) {
-                            $sql_delete_booking = $wpdb->prepare(
-                            "DELETE FROM $table_name_bookings WHERE booking_id = %d",
-                            $b['booking_id']
-                        );
-                        // $rows_deleted kommer att vara antalet rader raderade, 0, eller false.
-                        $rows_deleted = $wpdb->query($sql_delete_booking);
-
-                        // 2. Kontrollera resultatet av raderingen
-                        if ($rows_deleted === false) {
-                                error_log("fel vid radering av bokning wpdb_error $wpdb->last_error");
-                        }
-                    }
-                }       
 
                 //lägg till schemablock
                 $result = $wpdb->insert(
@@ -215,7 +212,7 @@ class AdminScheduleBlocks
         }
 
         // kontrollerar att bokning inte är möjligt bakåt i tiden
-        if (strtotime($_POST['booking_start']) < time()) {
+        if (strtotime($_POST['booking_end']) < time()) {
             $redirect_url = admin_url('admin.php?page=tontid-schedule-blocks&error=booking_in_past');
             wp_safe_redirect($redirect_url);
             return;

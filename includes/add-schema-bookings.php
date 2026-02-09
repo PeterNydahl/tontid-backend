@@ -30,7 +30,7 @@ class AddSchemaBookings
         $schema_raw = self::read_and_filter_schema_file();
         $schema_filtered = self::filter_music_room_bookings($schema_raw);
         self::add_bookings_data($schema_filtered);
-        self::delete_manual_bookings_clashes();
+        self::delete_bookings_clashes();
     }
 
     private static function read_and_filter_schema_file()
@@ -208,7 +208,7 @@ class AddSchemaBookings
     {
         
     
-        //ta bort alla nuvarande schemabokningar
+        //ta bort alla nuvarande bokningar av typen 'schema'
         global $wpdb;
         $table_name = $wpdb->prefix . 'tontid_bookings';
         $deleted = $wpdb->delete(
@@ -223,10 +223,9 @@ class AddSchemaBookings
         }
 
         //Hämta schemablockeringar 
-        $schedule_blocks = $wpdb->get_results("SELECT * FROM $table_name WHERE booking_type = 'schemablock'", ARRAY_A);        
+        // $schedule_blocks = $wpdb->get_results("SELECT * FROM $table_name WHERE booking_type = 'schemablock'", ARRAY_A);        
 
-        //loopar igenom scehmats alla "bokningsobjekt"
-
+        //loopar igenom det uppladdade scehmats alla "bokningsobjekt"
         foreach ($filtered_schema as $schema_booking) {  
             $schema_booking_weeks = self::get_weeks_from_booking($schema_booking[12]); //veckor har index 12 i bokningsobjektet
 
@@ -240,13 +239,13 @@ class AddSchemaBookings
                 $booking_time = self::calculate_booking_time($week, $schema_booking[2], 2025, $schema_booking[3], $schema_booking[4]);
 
                 // om bokning krockar med en schemablockering - gå vidare till nästa iteration
-                foreach($schedule_blocks as $sb){
-                    if(
-                        strtotime($booking_time[0]) < strtotime($sb['booking_end']) 
-                        && strtotime($booking_time[1]) > strtotime($sb['booking_start'])
-                    )
-                    continue 2;        
-                }
+                // foreach($schedule_blocks as $sb){
+                //     if(
+                //         strtotime($booking_time[0]) < strtotime($sb['booking_end']) 
+                //         && strtotime($booking_time[1]) > strtotime($sb['booking_start'])
+                //     )
+                //     continue 2;        
+                // }
 
                 //eventuellt bättre lösning på oivantstående
                 // $exists = $wpdb->get_var(
@@ -286,48 +285,97 @@ class AddSchemaBookings
             }
         }
 
-
         return "<p>Schemafilen är nu registrerad!🥳</p>";
     }
 
-    private static function delete_manual_bookings_clashes()
+    private static function delete_bookings_clashes()
     {
-        //hämta manuella bokningar
         global $wpdb;
         $table_name = $wpdb->prefix . 'tontid_bookings';
-        $sql_manual_bookings = $wpdb->prepare("
-            SELECT *
-            FROM $table_name
-            WHERE `booking_type` = %s
-        ", 'manual');
-        $manual_bookings = $wpdb->get_results($sql_manual_bookings, ARRAY_A);
 
-        //hämta schemabokningar 
-        $sql_schema_bookings = $wpdb->prepare(
-            "
-            SELECT *
-            FROM $table_name
-            WHERE `booking_type` = %s",
-            'schema'
-        );
-        $schema_bookings = $wpdb->get_results($sql_schema_bookings, ARRAY_A);
+        //hämta schema blockeringar
+        // $schedule_blocks = $wpdb->get_results(
+        //     $wpdb->prepare(
+        //         "SELECT * FROM $table_name
+        //         WHERE `booking_type` = %s
+        //         ", 'schemablock'
+        //     ), ARRAY_A
+        // );
+
+        // //hämta manuella bokningar
+        // $sql_manual_bookings = $wpdb->prepare("
+        //     SELECT *
+        //     FROM $table_name
+        //     WHERE `booking_type` = %s
+        // ", 'manual');
+        // $manual_bookings = $wpdb->get_results($sql_manual_bookings, ARRAY_A);
+
+        // //hämta schemabokningar 
+        // $sql_schema_bookings = $wpdb->prepare(
+        //     "
+        //     SELECT *
+        //     FROM $table_name
+        //     WHERE `booking_type` = %s",
+        //     'schema'
+        // );
+        // $schema_bookings = $wpdb->get_results($sql_schema_bookings, ARRAY_A);
+
+        // Ta bort manuella bokningar som överlappar schemabokningar
+        $wpdb->query("
+            DELETE m
+            FROM {$table_name} AS m
+            INNER JOIN {$table_name} AS s
+            ON m.booking_type = 'manual'
+            AND s.booking_type = 'schema'
+            AND m.room_id = s.room_id
+            AND m.booking_start < s.booking_end
+            AND m.booking_end   > s.booking_start;
+        ");
+
+        // Ta bort schemabokningar som överlappar schedule_blocks
+        $wpdb->query("
+            DELETE s
+            FROM {$table_name} AS s
+            INNER JOIN {$table_name} AS b
+            ON s.booking_type = 'schema'
+            AND b.booking_type = 'schemablock'
+            AND s.room_id = b.room_id
+            AND s.booking_start < b.booking_end
+            AND s.booking_end   > b.booking_start;
+        
+        ");
+
 
         //jämför och ta bort manuella bokningar som krockar
-        foreach ($schema_bookings as $schema_booking) {
-            foreach ($manual_bookings as $manual_booking) {
-                if (
-                    $manual_booking['room_id'] === $schema_booking['room_id'] &&
-                    strtotime($manual_booking['booking_start']) < strtotime($schema_booking['booking_end']) &&
-                    strtotime($manual_booking['booking_end']) > strtotime($schema_booking['booking_start'])
-                ) {
-                    $wpdb->delete(
-                        $table_name,
-                        [
-                            'booking_id' => $manual_booking['booking_id']
-                        ]
-                    );
-                };
-            };
-        };
+        // foreach ($schema_bookings as $schema_booking) {
+        //     foreach ($manual_bookings as $manual_booking) {
+        //         if (
+        //             $manual_booking['room_id'] === $schema_booking['room_id'] &&
+        //             strtotime($manual_booking['booking_start']) < strtotime($schema_booking['booking_end']) &&
+        //             strtotime($manual_booking['booking_end']) > strtotime($schema_booking['booking_start'])
+        //         ) {
+        //             $wpdb->delete(
+        //                 $table_name,
+        //                 [
+        //                     'booking_id' => $manual_booking['booking_id']
+        //                 ]
+        //             );
+        //         };
+        //     };
+        //     foreach ($schedule_blocks as $schedule_block) {
+        //         if (
+        //             $schedule_block['room_id'] === $schema_booking['room_id'] &&
+        //             strtotime($schedule_block['booking_start']) < strtotime($schema_booking['booking_end']) &&
+        //             strtotime($schedule_block['booking_end']) > strtotime($schema_booking['booking_start'])
+        //         ) {
+        //             $wpdb->delete(
+        //                 $table_name,
+        //                 [
+        //                     'booking_id' => $schema_booking['booking_id']
+        //                 ]
+        //             );
+        //         };
+        //     };
+        // };
     }
 }
