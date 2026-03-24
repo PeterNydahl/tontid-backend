@@ -20,8 +20,8 @@ class AdminScheduleBlocks
             'tontid_view_menu',
             'tontid-schedule-blocks',
             array($this, 'display_schedule_blocks'),
-            'dashicons-calendar',
-            0
+            'dashicons-lock',
+            1
         );
     }
 
@@ -127,19 +127,20 @@ class AdminScheduleBlocks
         $start_timestamp = $start_datetime->getTimestamp();
         $start_date = $start_datetime->format('Y-m-d');
         $start_time = $start_datetime->format('H:i:s');
-        
+        $start_day = date('d', $start_timestamp);
         
         $end_datetime = new DateTime(sanitize_text_field($_POST['booking_end']));
         $end_timestamp = $end_datetime->getTimestamp();
         $end_date = $end_datetime->format('Y-m-d');
         $end_time = $end_datetime->format('H:i:s');
+        $end_day = date('d', $end_timestamp);
         
         
         $blocking_dates = [];
 
         //skapa en array med det omfång av datum som blockeringen består av
         $twentyfourhours_in_seconds = 24 * 3600;
-        for ($i = 0; $start_timestamp < $end_timestamp; $i++) {
+        for ($i = 0; date('d', $start_timestamp) <= date('d', $end_timestamp); $i++) {
             $date = (new DateTime())->setTimestamp($start_timestamp)->format('Y-m-d');
             $blocking_dates[] = $date;
             $start_timestamp += $twentyfourhours_in_seconds;
@@ -173,10 +174,30 @@ class AdminScheduleBlocks
         $user_id = get_current_user_id();
 
         foreach ($selected_rooms as $room_id){
+            //håller reda vilket index av $blocking_dates loopen itererar
+            $blocking_dates_index = 0;
             foreach ($blocking_dates as $blocking_date) {
-                $blocking_start = (new DateTime("$blocking_date $start_time"))->format('Y-m-d H:i:s');
-                $blocking_end = (new DateTime("$blocking_date $end_time"))->format('Y-m-d H:i:s');
 
+                //OM det bara finns ett datum
+                if(count($blocking_dates) === 1){
+                    $blocking_start = (new DateTime("$blocking_date $start_time"))->format('Y-m-d H:i:s');
+                    $blocking_end = (new DateTime("$blocking_date $end_time"))->format('Y-m-d H:i:s');
+                }
+                //ANNARS OM det är första datumet (av flera) - sätt SLUTTID 20:00 (eftersom blocken fortsätter följande dag)
+                else if($blocking_dates_index === 0){
+                    $blocking_start = (new DateTime("$blocking_date $start_time"))->format('Y-m-d H:i:s');
+                    $blocking_end = (new DateTime("$blocking_date 20:00:00"))->format('Y-m-d H:i:s');
+                }
+                //ANNARS OM det är sista datumet 
+                else if($blocking_dates_index === count($blocking_dates)-1){
+                    $blocking_start = (new DateTime("$blocking_date 08:00:00"))->format('Y-m-d H:i:s');
+                    $blocking_end = (new DateTime("$blocking_date $end_time"))->format('Y-m-d H:i:s');
+                }
+                //ANNARS dvs övriga datum i blocken
+                else {
+                    $blocking_start = (new DateTime("$blocking_date 08:00:00"))->format('Y-m-d H:i:s');
+                    $blocking_end = (new DateTime("$blocking_date 20:00:00"))->format('Y-m-d H:i:s');
+                }
                 //lägg till schemablock
                 $result = $wpdb->insert(
                     $wpdb->prefix . 'tontid_bookings',
@@ -197,9 +218,9 @@ class AdminScheduleBlocks
                         '%s'   // booking_type
                     )
                 );
+                $blocking_dates_index++;
             }
         }
-
         if ($result === false) {
             error_log('DB ERROR: ' . $wpdb->last_error);
         }
@@ -221,10 +242,6 @@ class AdminScheduleBlocks
         $redirect_url = add_query_arg([
             'page' => 'tontid-schedule-blocks',
             'message' => 'blocking_added',
-            // 'booking_start' => rawurlencode($_POST['booking_start']),
-            // 'booking_end' => rawurlencode($_POST['booking_end']),
-            // 'selected_rooms' => rawurlencode($_POST['selected_rooms_as_string'])
-            // 'booking_lesson' => rawurlencode($_POST['booking_lesson'])
         ], admin_url('admin.php'));
 
         wp_safe_redirect($redirect_url);

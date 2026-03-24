@@ -12,7 +12,7 @@
 //             [3] => 12:00 START
 //             [4] => 300 LÄNGD
 //             [5] => 
-//             [6] => RYTMUS/MUSSKOL
+//             [6] => RYTMUS/MUSSKOL kan också vara MÖTE
 //             [7] => 
 //             [8] => 
 //             [9] => SAL
@@ -238,44 +238,39 @@ class AddSchemaBookings
                 
                 $booking_time = self::calculate_booking_time($week, $schema_booking[2], 2025, $schema_booking[3], $schema_booking[4]);
 
-                // om bokning krockar med en schemablockering - gå vidare till nästa iteration
-                // foreach($schedule_blocks as $sb){
-                //     if(
-                //         strtotime($booking_time[0]) < strtotime($sb['booking_end']) 
-                //         && strtotime($booking_time[1]) > strtotime($sb['booking_start'])
-                //     )
-                //     continue 2;        
-                // }
+                //***************************************************************
+                //      datastruktur på bokningar hämtade från schemat                      
+                //***************************************************************
+                //             [0] => 165 Bokningens ID (?) 
+                //             [1] => {33EF1C43-12BE-4719-A18B-29DB6E2D56E6} ID?
+                //             [2] => Måndag VECKODAG
+                //             [3] => 12:00 START
+                //             [4] => 300 LÄNGD
+                //             [5] => Ämneskod tex MATMAT02b
+                //             [6] => ÄMNE eller RYTMUS eller MUSSKOL eller MÖTE eller CLINIC
+                //             [7] => LÄRARE
+                //             [8] => Kan vara SALSPÄRR
+                //             [9] => SAL
+                //             [10] => 
+                //             [11] => 
+                //             [12] => 34-43, 45-51, 3-8, 10-14, 16-24 VECKOR
 
-                //eventuellt bättre lösning på oivantstående
-                // $exists = $wpdb->get_var(
-                //     $wpdb->prepare(
-                //         "
-                //         SELECT 1 
-                //         FROM {$table_name} 
-                //         WHERE booking_type = 'schemablock'
-                //         AND room_id = %s
-                //         AND booking_start < %s
-                //         AND booking_end > %s
-                //         LIMIT 1
-                //         ",
-                //         $schema_booking[9], $booking_time[1], $booking_time[0]
-                //     )
-                // );
-
-                // if ($exists) {
-                //     continue; // hoppa över den här bokningen
-                // }
-
-
-                //lägg till bokning i db
+                //LÄGG TILL BOKNING I DATABAS
+                //--------------------------------------------------------------
+                //registrera namn på lektion om det finns, annars $schema_booking[8] (salspärr), annars $schema_booking[6] (RYTMUS/MUSSKOL eller MÖTE) 
+                $lesson = $schema_booking[5] ?: $schema_booking[5] ?: $schema_booking[6] ?: $schema_booking[8];
+                //regga lärare annars sådant som tex specificerad salspärr a la Salspärr EST02
+                $teacher = $schema_booking[7] ? $schema_booking[7] : $schema_booking[8];
+                if(strlen($teacher) > 25){
+                    $teacher = substr($teacher, 0, 25) . "..";
+                }
+                
                 $wpdb->insert(
                     $table_name,
                     [
                         'room_id' => $schema_booking[9],
-                        //registrera namn på lektion om det finns, annars $schema_booking[8] vilket är salspärr
-                        'lesson' => empty(!$schema_booking[5]) ? $schema_booking[5] : $schema_booking[8],
-                        'teacher' => $schema_booking[7],
+                        'lesson' => $lesson,
+                        'teacher' => $teacher,
                         'booking_start' => $booking_time[0],
                         'booking_end' => $booking_time[1],
                         'booking_type' => 'schema'

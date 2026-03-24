@@ -1,8 +1,6 @@
 <?php
 
-if(!defined('ABSPATH')) {
-    wp_die('Du har inte rätt till direktåtkomst av den här filen.');
-}
+if(!defined('ABSPATH')) exit; 
 
 function tontid_create_roles() {
     global $wp_roles;

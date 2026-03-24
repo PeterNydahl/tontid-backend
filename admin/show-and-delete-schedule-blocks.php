@@ -10,13 +10,14 @@ class AdminShowAndDeleteScheduleBlocks{
     }
 
     public function add_menu(){
-        add_submenu_page(
-            'tontid-schedule-blocks',
+        add_menu_page(
             'Visa/ta bort schemablockeringar',
             'Visa/ta bort schemablockeringar',
             'tontid_view_menu',
             'show-and-delete-schedule-blocks',
-            array($this, 'display_add_and_delete_schedule_bookings')
+            array($this, 'display_add_and_delete_schedule_bookings'),
+            'dashicons-unlock',
+            2
         );
     }
 
@@ -44,14 +45,17 @@ class AdminShowAndDeleteScheduleBlocks{
                     <th>Ta bort</th>
                 </tr>";
                 
-                //dela schemblockeringar in i grupper
+                // dela schemblockeringar in i grupper
                 $groups = [];
                 $g_index = 0;
                 for($i = 0; $i < count($schedule_blocks); $i++){
+                    //Om det är första gruppen - skapa ny grupp. 
                     if($i === 0)
                         $groups[$g_index][] = $schedule_blocks[$i];
+                    // Om det inte är första elementet OCH starttiden är samma som föregående, lägg till i samma grupp
                     if($i > 0 && $schedule_blocks[$i-1]['booking_start'] === $schedule_blocks[$i]['booking_start'])
                         $groups[$g_index][] = $schedule_blocks[$i];
+                    // Annars - om det inte är första elementet och starttiden skiljer sig från föregående, lägg till i NY grupp
                     else{
                         if($i > 1)
                             $g_index++; 
@@ -68,8 +72,8 @@ class AdminShowAndDeleteScheduleBlocks{
                         }
                     echo "</td>";
                     echo "<td>{$groups[$i][0]['lesson']}</td>
-                    <td>{$groups[$i][0]['booking_start']}</td>
-                    <td>{$groups[$i][0]['booking_end']}</td>
+                    <td>" . substr($groups[$i][0]['booking_start'], 0, -3) . "</td>
+                    <td>" . substr($groups[$i][0]['booking_end'], 0, -3) ."</td>
                     <td>
                        <form action='" . esc_url(admin_url('admin-post.php')) . "' method='post'>";
                             wp_nonce_field('delete_schedule_block_nonce', 'delete_schedule_block_nonce');
@@ -84,7 +88,7 @@ class AdminShowAndDeleteScheduleBlocks{
                 </tr>";
                 }
         } else {
-            echo "<p>Inga schemablokceringar kunde hittas.</p>";
+            echo "<p>Just nu finns det inga schemablockeringar.</p>";
         }
     }
 

@@ -24,8 +24,8 @@ class AdminShowTodaysBookings
             'tontid_view_menu',
             'tontid-show-todays-bookings',
             array($this, 'display_todays_bookings'),
-            'dashicons-yes',
-            1
+            'dashicons-visibility',
+            4
         );
     }
 

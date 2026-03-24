@@ -15,12 +15,26 @@ if (!defined('ABSPATH')) {
     wp_die('Du har inte rätt till direktåtkomst av den här filen');
 }
 
-/* UI (dashboard) FÖR RESULTAT VID TESTING 
+/* UI (dashboard) TESTING - canvas för testning av kod! 👨‍🎨
+---------------------------------------------------------*/
+add_action('admin_menu', function(){
+        add_menu_page(
+            'Testmiljö', // page title 
+            'Testmiljö', // menu title
+            'tontid_view_menu',
+            'test-environment', 
+            'display_test_environment',
+            'dashicons-admin-customizer', 
+            0);
+});
+require_once plugin_dir_path(__FILE__) . '/admin/1-admin-test-environment.php';
+
+/* UI (dashboard) TESTING - visa bokningar från schemafil ✈✈✈✈
 ---------------------------------------------------------*/
 // add_action('admin_menu', function(){
 //         add_menu_page(
 //             'Test', 
-//             'Test', 
+//             'visa schemafil (test)', 
 //             'tontid_view_menu',
 //             'tontid-test', 
 //             function() {require plugin_dir_path(__FILE__) . '/includes/test.php';}
@@ -75,6 +89,10 @@ require_once plugin_dir_path(__FILE__) . 'admin/admin-handle-rooms.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin-functions.php';
 
 
+/* SER TILL ATT RYTMUSGRUPPEN FINNS OCH ATT ALLA ANVÄNDARE ÄR MEDLEMMAR I DEN */
+require_once plugin_dir_path(__FILE__) . 'includes/create-rytmus-group-memberships.php';
+add_action('init', 'create_rytmus_group_membership_for_everyone');
+
 /*SKAPA TABELLER OCH ROLLER NÄR PLUGINET AKTIVERAS
 -----------------------------------------------------*/
 //inkludera filer där metoderna ligger
@@ -82,19 +100,29 @@ require_once plugin_dir_path(__FILE__) . 'includes/create-tables.php';
 require_once plugin_dir_path(__FILE__) . 'includes/create-roles.php';
 //Orkestreringsmetod som kör metoder vid aktivering av plugin
 function plugin_activation_orchestra(){
+    tontid_create_group_membership_table();
     tontid_create_music_rooms_table();
     tontid_create_bookings_table();
+    tontid_create_post_likes_table();
     tontid_create_roles();
 
     //indexering av db för ökad prestanda
     global $wpdb;
     $table_name = $wpdb->prefix . 'tontid_bookings';
-    $wpdb->query("
+
+    $index_exists = $wpdb->get_var("
+    SHOW INDEX FROM $table_name 
+    WHERE Key_name = 'idx_type_room_start_end'
+    ");
+
+    if (!$index_exists) {
+        $wpdb->query("
         ALTER TABLE $table_name
         ADD INDEX idx_type_room_start_end (booking_type, room_id, booking_start, booking_end)
     ");
+    }
 }
-//och så hooken:
+//och så själva wp-hooken för aktivering av plugin:
 register_activation_hook( __FILE__, 'plugin_activation_orchestra');
 
 /* IKNLUDERA FIL SOM HANTERAR BEHÖRIGHETER TILL DASHBOARD */
@@ -117,6 +145,9 @@ function tontid_enqueue_admin_styles() {
     );
 }
 
+//GAMMAL CORS-korrigering START
+//TODO - ta bort när du ser att det verkligen räcker med den nya koden under denna utkommenterade!
+
 //CORS (står för Cross-Origin Resource Sharing) är webbläsarens sätt att skydda servrar från att ta emot data från okända källor.
 //Inställnnigarna nedan låter vår plugin “prata” med frontend från andra domäner genom att tillåta CORS.
 //Tillåt CORS (enkelt exempel – använd specifik origin i produktion!)
@@ -128,45 +159,75 @@ function tontid_enqueue_admin_styles() {
 // → WP behöver inte ladda hela systemet.
 // ✔ Samma logik gäller för alla svar, inte bara REST API
 
-// 1. Hantera preflight OPTIONS
-add_action('init', function () {
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+// // 1. Hantera preflight OPTIONS
+// add_action('init', function () {
+//     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
-        $allowed_origins = [
-            'https://tontid.nu',
-            'https://www.tontid.nu',
-            'http://localhost:3000'
-        ];
+//         $allowed_origins = [
+//             'https://tontid.nu',
+//             'https://www.tontid.nu',
+//             'http://localhost:3000'
+//         ];
 
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+//         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-        if (in_array($origin, $allowed_origins)) {
-            header("Access-Control-Allow-Origin: $origin");
-            header("Access-Control-Allow-Credentials: true");
-            header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-            header("Access-Control-Allow-Headers: Content-Type, Authorization");
-        }
+//         if (in_array($origin, $allowed_origins)) {
+//             header("Access-Control-Allow-Origin: $origin");
+//             header("Access-Control-Allow-Credentials: true");
+//             header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+//             header("Access-Control-Allow-Headers: Content-Type, Authorization");
+//         }
 
-        status_header(200);
-        exit;
-    }
-});
+//         status_header(200);
+//         exit;
+//     }
+// });
 
-// 2. Lägg korrekta headers på ALLA svar innan WordPress skickar sina egna
-add_action('send_headers', function () {
+// // 2. Lägg korrekta headers på ALLA svar innan WordPress skickar sina egna
+// add_action('send_headers', function () {
 
+//     $allowed_origins = [
+//         'https://tontid.nu',
+//         'https://www.tontid.nu',
+//         'http://localhost:3000',
+//     ];
+
+//     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+//     if (in_array($origin, $allowed_origins)) {
+//         header("Access-Control-Allow-Origin: $origin");
+//         header("Access-Control-Allow-Credentials: true");
+//         header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+//         header("Access-Control-Allow-Headers: Content-Type, Authorization");
+//     }
+// });
+//GAMMAL CORS-korrigering SLUT
+
+
+// --- Lägger CORS på alla REST API-respons ---
+// Genom att använda 'rest_pre_serve_request' säkerställs att alla REST API-svar (inklusive POST och preflight OPTIONS)
+// alltid får korrekta CORS-headers innan WordPress skickar output. 
+// Tidigare lösningar med 'init' och 'send_headers' är överflödiga, eftersom de antingen inte alltid körs 
+// för REST API eller riskerar att köras för sent. Detta är den mest robusta metoden för att hantera CORS i WordPress REST API.
+function tontid_send_cors_headers() {
     $allowed_origins = [
+        'http://localhost:3000',
         'https://tontid.nu',
         'https://www.tontid.nu',
-        'http://localhost:3000'
     ];
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
     if (in_array($origin, $allowed_origins)) {
         header("Access-Control-Allow-Origin: $origin");
         header("Access-Control-Allow-Credentials: true");
         header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization");
+        header("Access-Control-Allow-Headers: Authorization, Content-Type");
     }
+}
+
+// --- Lägg CORS på alla REST API-respons ---
+// Denna filter ska ligga innan callbacks registreras
+add_filter('rest_pre_serve_request', function ($served) {
+    tontid_send_cors_headers();
+    return $served;
 });
